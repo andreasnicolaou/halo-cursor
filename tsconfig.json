@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "isolatedModules": true,
+    "target": "ESNext",
+    "module": "ESNext",
+    "lib": ["esnext", "dom"],
+    "strict": true,
+    "typeRoots": ["node_modules/@types", "./types"],
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "esModuleInterop": true,
+    "moduleResolution": "bundler",
+    "types": ["jest", "node"],
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["src/**/*.ts", "**/*.spec.ts"],
+  "exclude": ["node_modules", "dist", "src/**/*.test.ts"],
+  "lib": ["esnext", "dom"]
+}

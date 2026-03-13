@@ -1,0 +1,910 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Halo Cursor – Live Demo</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              brand: {
+                DEFAULT: '#6366f1',
+                soft: 'rgba(99,102,241,0.15)',
+              },
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      /* Safety net: never show the custom cursor on touch/coarse pointers */
+      @media (pointer: coarse), (hover: none) {
+        .halo-cursor-outer,
+        .halo-cursor-inner {
+          display: none !important;
+          opacity: 0 !important;
+          visibility: hidden !important;
+        }
+
+        html,
+        body {
+          cursor: auto !important;
+        }
+      }
+    </style>
+  </head>
+  <body
+    class="min-h-screen bg-slate-100 text-slate-900 transition-colors duration-200 dark:bg-slate-950 dark:text-slate-100"
+  >
+    <div class="container mx-auto max-w-6xl px-4 py-6 sm:py-8 lg:py-10">
+      <!-- Top card -->
+      <div
+        class="mb-6 rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900/90"
+      >
+        <div class="flex flex-col gap-4">
+          <div class="space-y-2">
+            <h1
+              class="text-center text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-50 md:text-left"
+            >
+              Halo Cursor – Framework‑Agnostic Animated Cursor
+            </h1>
+            <p class="text-center text-sm text-slate-600 dark:text-slate-400 md:text-left">
+              Live demo of
+              <code class="rounded bg-slate-100 px-1 py-0.5 text-xs dark:bg-slate-800"
+                >@andreasnicolaou/halo-cursor</code
+              >
+              using the local UMD build from
+              <code class="rounded bg-slate-100 px-1 py-0.5 text-xs dark:bg-slate-800">../dist</code>.
+            </p>
+
+            <div
+              class="mt-3 flex flex-col gap-2 rounded-2xl border border-slate-200 bg-slate-50/80 p-3 text-xs text-slate-700 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-300"
+            >
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div class="font-medium text-slate-800 dark:text-slate-100">Local build / UMD info</div>
+                <span
+                  id="cdn-status"
+                  class="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2 py-0.5 text-[11px] text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                >
+                  <span class="h-2 w-2 animate-pulse rounded-full bg-amber-400"></span>
+                  Loading build…
+                </span>
+              </div>
+              <div class="space-y-1">
+                <div>
+                  <span class="font-semibold text-slate-700 dark:text-slate-200">Package:</span>
+                  <code class="ml-1 rounded bg-slate-100 px-1 py-0.5 text-[11px] dark:bg-slate-800"
+                    >@andreasnicolaou/halo-cursor</code
+                  >
+                </div>
+                <div class="break-all text-[11px] text-slate-600 dark:text-slate-400">
+                  <span class="font-semibold">Source:</span>
+                  <code
+                    class="ml-1 cursor-pointer break-all rounded bg-slate-100 px-1 py-0.5 dark:bg-slate-800"
+                    title="Local UMD build"
+                  >
+                    ../dist/index.umd.min.js
+                  </code>
+                </div>
+                <div>
+                  <span class="font-semibold text-slate-700 dark:text-slate-200">Global variable:</span>
+                  <code class="ml-1 rounded bg-slate-100 px-1 py-0.5 text-[11px] dark:bg-slate-800">halo</code>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Demo + controls -->
+      <div id="panels-container" class="grid gap-5" style="display: none">
+        <!-- Playground (scopable rootElement) -->
+        <section
+          id="demo-root"
+          class="relative rounded-3xl border border-slate-200 bg-slate-50/90 p-4 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900/90"
+        >
+          <div class="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <h2 class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                Live playground
+              </h2>
+              <p class="mt-1 text-xs text-slate-600 dark:text-slate-400">
+                Hover buttons, links and inputs inside this card to see the halo cursor in action.
+              </p>
+            </div>
+            <span
+              id="cursor-status"
+              class="inline-flex items-center gap-1.5 rounded-full bg-slate-900/5 px-2.5 py-1 text-[11px] text-slate-600 dark:bg-slate-800/80 dark:text-slate-300"
+            >
+              <span class="relative inline-flex h-2 w-2">
+                <span id="cursor-status-dot" class="absolute inline-flex h-2 w-2 rounded-full bg-emerald-400"></span>
+                <span
+                  id="cursor-status-ping"
+                  class="absolute inline-flex h-2 w-2 animate-ping rounded-full bg-emerald-400/40"
+                ></span>
+              </span>
+              <span id="cursor-status-label">Cursor enabled</span>
+            </span>
+          </div>
+
+          <div class="grid gap-3 md:grid-cols-3">
+            <div
+              class="flex flex-col justify-between gap-3 rounded-2xl border border-slate-200 bg-white/90 p-3 dark:border-slate-700 dark:bg-slate-900/90"
+            >
+              <div>
+                <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                  Buttons
+                </p>
+                <p class="mt-1 text-xs text-slate-600 dark:text-slate-400">
+                  Hover & click to see hover and click states.
+                </p>
+              </div>
+              <button
+                type="button"
+                class="mt-1 inline-flex items-center justify-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-800 shadow-sm hover:border-brand hover:bg-brand.soft hover:text-brand dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              >
+                Primary action
+              </button>
+              <div class="mt-1 flex flex-wrap gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+                <span class="rounded-full border border-slate-200 px-2 py-0.5 dark:border-slate-700">:hover state</span>
+                <span class="rounded-full border border-slate-200 px-2 py-0.5 dark:border-slate-700">Click pulse</span>
+              </div>
+            </div>
+
+            <div
+              class="flex flex-col justify-between gap-3 rounded-2xl border border-slate-200 bg-white/90 p-3 dark:border-slate-700 dark:bg-slate-900/90"
+            >
+              <div>
+                <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                  Links
+                </p>
+                <p class="mt-1 text-xs text-slate-600 dark:text-slate-400">
+                  Test anchor hover state and accessibility.
+                </p>
+              </div>
+              <a
+                href="https://www.npmjs.com/package/@andreasnicolaou/halo-cursor"
+                target="_blank"
+                rel="noreferrer"
+                class="mt-1 inline-flex items-center justify-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-800 shadow-sm hover:border-brand hover:bg-brand.soft hover:text-brand dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              >
+                View on npm
+              </a>
+              <div class="mt-1 flex flex-wrap gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+                <span class="rounded-full border border-slate-200 px-2 py-0.5 dark:border-slate-700"
+                  >Framework agnostic</span
+                >
+              </div>
+            </div>
+
+            <div
+              class="flex flex-col justify-between gap-3 rounded-2xl border border-slate-200 bg-white/90 p-3 dark:border-slate-700 dark:bg-slate-900/90"
+            >
+              <div>
+                <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                  Inputs
+                </p>
+                <p class="mt-1 text-xs text-slate-600 dark:text-slate-400">
+                  Try focus and hover around interactive controls.
+                </p>
+              </div>
+              <label class="mt-1 text-xs text-slate-700 dark:text-slate-200">
+                Your email
+                <input
+                  type="email"
+                  placeholder="you@example.com"
+                  class="mt-1 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-brand focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500"
+                />
+              </label>
+              <button
+                type="button"
+                class="inline-flex items-center justify-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-800 shadow-sm hover:border-brand hover:bg-brand.soft hover:text-brand dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              >
+                Submit
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Controls / form -->
+        <section
+          class="space-y-3 rounded-3xl border border-slate-200 bg-white/90 p-4 text-xs text-slate-900 shadow-sm shadow-slate-900/5 dark:border-slate-800 dark:bg-slate-900/90 dark:text-slate-100"
+        >
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <h2 class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                Cursor options
+              </h2>
+              <p class="mt-1 text-xs text-slate-600 dark:text-slate-400">
+                Adjust options and see changes instantly in the playground.
+              </p>
+            </div>
+            <button
+              id="reset-options"
+              type="button"
+              class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] font-medium text-slate-800 shadow-sm hover:border-brand hover:bg-brand.soft hover:text-brand dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+            >
+              Reset
+            </button>
+          </div>
+
+          <form id="cursor-form" class="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <!-- Sizes -->
+            <div class="space-y-2">
+              <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                Sizes
+              </p>
+              <label class="flex flex-col gap-1">
+                <span class="flex justify-between">
+                  <span>Outer size</span>
+                  <span id="outerSize-value" class="text-slate-500 dark:text-slate-400"></span>
+                </span>
+                <input id="outerSize" name="outerSize" type="range" min="16" max="80" step="2" class="w-full" />
+              </label>
+              <label class="flex flex-col gap-1">
+                <span class="flex justify-between">
+                  <span>Inner size</span>
+                  <span id="innerSize-value" class="text-slate-500 dark:text-slate-400"></span>
+                </span>
+                <input id="innerSize" name="innerSize" type="range" min="2" max="16" step="1" class="w-full" />
+              </label>
+              <label class="flex flex-col gap-1">
+                <span class="flex justify-between">
+                  <span>Hover outer size</span>
+                  <span id="hoverOuterSize-value" class="text-slate-500 dark:text-slate-400"></span>
+                </span>
+                <input
+                  id="hoverOuterSize"
+                  name="hoverOuterSize"
+                  type="range"
+                  min="24"
+                  max="120"
+                  step="2"
+                  class="w-full"
+                />
+              </label>
+              <label class="flex flex-col gap-1">
+                <span class="flex justify-between">
+                  <span>Click outer size</span>
+                  <span id="clickOuterSize-value" class="text-slate-500 dark:text-slate-400"></span>
+                </span>
+                <input
+                  id="clickOuterSize"
+                  name="clickOuterSize"
+                  type="range"
+                  min="12"
+                  max="64"
+                  step="2"
+                  class="w-full"
+                />
+              </label>
+            </div>
+
+            <!-- Colors & behavior -->
+            <div class="space-y-2">
+              <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                Colors & behavior
+              </p>
+
+              <div class="grid grid-cols-[auto,1fr] items-center gap-2">
+                <span class="text-xs text-slate-700 dark:text-slate-200">Inner color</span>
+                <input
+                  id="color"
+                  name="color"
+                  type="color"
+                  class="h-7 w-full rounded border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900"
+                />
+
+                <span class="text-xs text-slate-700 dark:text-slate-200">Hover color</span>
+                <input
+                  id="hoverColor"
+                  name="hoverColor"
+                  type="color"
+                  class="h-7 w-full rounded border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900"
+                />
+
+                <span class="text-xs text-slate-700 dark:text-slate-200">Outer border</span>
+                <input
+                  id="outerBorderColor"
+                  name="outerBorderColor"
+                  type="color"
+                  class="h-7 w-full rounded border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900"
+                />
+
+                <span class="text-xs text-slate-700 dark:text-slate-200">Hover border</span>
+                <input
+                  id="hoverBorderColor"
+                  name="hoverBorderColor"
+                  type="color"
+                  class="h-7 w-full rounded border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900"
+                />
+              </div>
+
+              <label class="mt-2 flex items-center gap-2">
+                <input
+                  id="hideNativeCursor"
+                  name="hideNativeCursor"
+                  type="checkbox"
+                  class="h-3.5 w-3.5 rounded border-slate-400 bg-slate-50 text-brand focus:ring-brand dark:border-slate-600 dark:bg-slate-900"
+                />
+                <span class="text-xs text-slate-800 dark:text-slate-100">Hide native cursor</span>
+              </label>
+
+              <label class="flex items-center gap-2">
+                <input
+                  id="disableOnReducedMotion"
+                  name="disableOnReducedMotion"
+                  type="checkbox"
+                  class="h-3.5 w-3.5 rounded border-slate-400 bg-slate-50 text-brand focus:ring-brand dark:border-slate-600 dark:bg-slate-900"
+                />
+                <span class="text-xs text-slate-800 dark:text-slate-100"
+                  >Disable when prefers‑reduced‑motion is set</span
+                >
+              </label>
+
+              <label class="flex flex-col gap-1">
+                <span class="flex justify-between">
+                  <span class="text-xs text-slate-800 dark:text-slate-100">Lerp (smoothing)</span>
+                  <span id="lerp-value" class="text-slate-500 dark:text-slate-400"></span>
+                </span>
+                <input id="lerp" name="lerp" type="range" min="0.02" max="0.35" step="0.01" class="w-full" />
+              </label>
+
+              <label class="flex flex-col gap-1">
+                <span class="text-xs text-slate-800 dark:text-slate-100">Interactive selectors</span>
+                <input
+                  id="interactiveSelectors"
+                  name="interactiveSelectors"
+                  type="text"
+                  class="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-900 placeholder:text-slate-400 focus:border-brand focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500"
+                />
+              </label>
+            </div>
+
+            <!-- Scope & layering -->
+            <div class="space-y-2">
+              <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                Scope & layering
+              </p>
+
+              <label class="flex flex-col gap-1">
+                <span class="flex justify-between">
+                  <span class="text-xs text-slate-800 dark:text-slate-100">z-index</span>
+                  <span id="zIndex-value" class="text-slate-500 dark:text-slate-400"></span>
+                </span>
+                <input id="zIndex" name="zIndex" type="range" min="100" max="99999" step="100" class="w-full" />
+              </label>
+
+              <label class="mt-2 flex items-center gap-2">
+                <input
+                  id="useScope"
+                  name="useScope"
+                  type="checkbox"
+                  class="h-3.5 w-3.5 rounded border-slate-400 bg-slate-50 text-brand focus:ring-brand dark:border-slate-600 dark:bg-slate-900"
+                />
+                <span class="text-xs text-slate-800 dark:text-slate-100">Scope cursor to playground card only</span>
+              </label>
+
+              <p class="mt-1 text-[11px] leading-relaxed text-slate-600 dark:text-slate-400">
+                When scoped, the cursor is only active inside the playground card and hides when the pointer leaves it.
+              </p>
+
+              <div class="mt-2 flex flex-wrap gap-2">
+                <button
+                  id="pause-btn"
+                  type="button"
+                  class="inline-flex items-center justify-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] font-medium text-slate-800 shadow-sm hover:border-amber-400 hover:bg-amber-400/10 hover:text-amber-500 disabled:opacity-50 disabled:cursor-not-allowed dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                >
+                  Pause
+                </button>
+                <button
+                  id="resume-btn"
+                  type="button"
+                  class="inline-flex items-center justify-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] font-medium text-slate-800 shadow-sm hover:border-emerald-400 hover:bg-emerald-400/10 hover:text-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                >
+                  Resume
+                </button>
+              </div>
+            </div>
+
+            <!-- Usage snippet -->
+            <div class="space-y-2">
+              <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                Usage snippet
+              </p>
+              <div
+                class="rounded-2xl border border-slate-200 bg-slate-50 p-3 font-mono text-[11px] leading-relaxed text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+              >
+                <div class="mb-2 flex items-center justify-between gap-2">
+                  <div class="flex gap-1.5">
+                    <span class="h-1.5 w-1.5 rounded-full bg-amber-400"></span>
+                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+                    <span class="h-1.5 w-1.5 rounded-full bg-brand"></span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <button
+                      id="copy-snippet"
+                      type="button"
+                      class="rounded-full border border-slate-200 bg-white/70 px-2.5 py-1 text-[10px] font-medium text-slate-700 shadow-sm hover:border-brand hover:bg-brand.soft hover:text-brand dark:border-slate-700 dark:bg-slate-950/40 dark:text-slate-200"
+                      title="Copy snippet"
+                    >
+                      Copy
+                    </button>
+                    <span class="text-[10px] uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400"
+                      >app.ts</span
+                    >
+                  </div>
+                </div>
+                <pre
+                  class="whitespace-pre-wrap"
+                ><code id="usage-snippet" class="break-words">import &#123; Cursor &#125; from '@andreasnicolaou/halo-cursor';
+
+const cursor = new Cursor(&#47;&#47; see options on the right);
+cursor.mount();
+
+// optional
+// cursor.pause();
+// cursor.resume();
+// cursor.destroy();</code></pre>
+                <p class="mt-2 text-[11px] text-slate-600 dark:text-slate-400">
+                  The cursor automatically disables itself on coarse pointers and when users enable
+                  <code>prefers-reduced-motion: reduce</code>.
+                </p>
+              </div>
+            </div>
+          </form>
+        </section>
+      </div>
+
+      <footer
+        class="mt-6 border-t border-slate-200 pt-4 text-[11px] text-slate-500 dark:border-slate-800 dark:text-slate-400"
+      >
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <span>
+            See the full README on
+            <a
+              href="https://github.com/andreasnicolaou/halo-cursor"
+              target="_blank"
+              rel="noreferrer"
+              class="font-medium text-brand hover:underline"
+              >GitHub</a
+            >.
+          </span>
+        </div>
+      </footer>
+    </div>
+
+    <script src="https://unpkg.com/@andreasnicolaou/halo-cursor/dist/index.umd.min.js"></script>
+    <script>
+      (function () {
+        if (typeof globalThis.window === 'undefined') return;
+        var cdnStatus = document.getElementById('cdn-status');
+        var CursorCtor = globalThis.window.halo && globalThis.window.halo.Cursor;
+        var DEFAULTS = globalThis.window.halo && globalThis.window.halo.DEFAULT_OPTIONS;
+        function markCdnStatus(ok) {
+          if (!cdnStatus) return;
+          var panels = document.getElementById('panels-container');
+          if (ok) {
+            cdnStatus.innerHTML = '<span class="h-2 w-2 rounded-full bg-emerald-400"></span><span>Build loaded</span>';
+            cdnStatus.className =
+              'inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[11px] text-emerald-500';
+            if (panels) panels.style.display = '';
+          } else {
+            cdnStatus.innerHTML =
+              '<span class="h-2 w-2 rounded-full bg-red-400"></span><span>Build failed to load</span>';
+            cdnStatus.className =
+              'inline-flex items-center gap-1 rounded-full bg-red-500/10 px-2.5 py-0.5 text-[11px] text-red-500';
+            if (panels) panels.style.display = 'none';
+          }
+        }
+
+        if (!CursorCtor) {
+          markCdnStatus(false);
+          return;
+        } else {
+          markCdnStatus(true);
+        }
+
+        var demoRoot = document.getElementById('demo-root');
+        var form = document.getElementById('cursor-form');
+        var resetBtn = document.getElementById('reset-options');
+        var pauseBtn = document.getElementById('pause-btn');
+        var resumeBtn = document.getElementById('resume-btn');
+        var useScopeCheckbox = document.getElementById('useScope');
+
+        var cursor = null;
+
+        var usageSnippetEl = document.getElementById('usage-snippet');
+        var copySnippetBtn = document.getElementById('copy-snippet');
+        var lastSnippetText = '';
+
+        function quoteString(value) {
+          return "'" + String(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
+        }
+
+        function formatValue(value) {
+          if (typeof value === 'string') return quoteString(value);
+          if (typeof value === 'number') return String(value);
+          if (typeof value === 'boolean') return value ? 'true' : 'false';
+          if (value == null) return 'null';
+          return quoteString(String(value));
+        }
+
+        function buildUsageSnippetText(formOptions) {
+          var opts = Object.assign({}, DEFAULTS || {}, formOptions || {});
+          var keys = [
+            'outerSize',
+            'innerSize',
+            'hoverOuterSize',
+            'clickOuterSize',
+            'lerp',
+            'zIndex',
+            'color',
+            'hoverColor',
+            'outerBorderColor',
+            'hoverBorderColor',
+            'hideNativeCursor',
+            'disableOnReducedMotion',
+            'interactiveSelectors',
+          ];
+
+          var changed = [];
+          keys.forEach(function (k) {
+            if (typeof opts[k] === 'undefined') return;
+            if (DEFAULTS && typeof DEFAULTS[k] !== 'undefined') {
+              if (opts[k] !== DEFAULTS[k]) changed.push(k);
+            } else {
+              changed.push(k);
+            }
+          });
+
+          var scoped = !!(useScopeCheckbox && useScopeCheckbox.checked);
+
+          var lines = [];
+          lines.push("import { Cursor } from '@andreasnicolaou/halo-cursor';");
+          lines.push('');
+
+          if (changed.length === 0 && !scoped) {
+            lines.push('const cursor = new Cursor();');
+          } else {
+            lines.push('const cursor = new Cursor({');
+            if (scoped) {
+              lines.push('  // Optional: scope to a container');
+              lines.push("  // rootElement: document.querySelector('#app'),");
+              if (changed.length) lines.push('');
+            }
+            changed.forEach(function (k) {
+              lines.push('  ' + k + ': ' + formatValue(opts[k]) + ',');
+            });
+            lines.push('});');
+          }
+
+          lines.push('cursor.mount();');
+          lines.push('');
+          lines.push('// optional');
+          lines.push('// cursor.pause();');
+          lines.push('// cursor.resume();');
+          lines.push('// cursor.destroy();');
+          return lines.join('\n');
+        }
+
+        function updateUsageSnippet() {
+          if (!usageSnippetEl) return;
+          lastSnippetText = buildUsageSnippetText(collectOptionsFromForm());
+          usageSnippetEl.textContent = lastSnippetText;
+        }
+
+        if (copySnippetBtn) {
+          copySnippetBtn.addEventListener('click', function () {
+            if (!lastSnippetText) updateUsageSnippet();
+            var text = lastSnippetText || '';
+
+            function flashLabel(label) {
+              var prev = copySnippetBtn.textContent;
+              copySnippetBtn.textContent = label;
+              setTimeout(function () {
+                copySnippetBtn.textContent = prev;
+              }, 1100);
+            }
+
+            if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(text).then(
+                function () {
+                  flashLabel('Copied');
+                },
+                function () {
+                  flashLabel('Copy failed');
+                }
+              );
+              return;
+            }
+
+            // Fallback
+            try {
+              var ta = document.createElement('textarea');
+              ta.value = text;
+              ta.setAttribute('readonly', '');
+              ta.style.position = 'fixed';
+              ta.style.top = '-9999px';
+              document.body.appendChild(ta);
+              ta.select();
+              var ok = document.execCommand && document.execCommand('copy');
+              document.body.removeChild(ta);
+              flashLabel(ok ? 'Copied' : 'Copy failed');
+            } catch (e) {
+              flashLabel('Copy failed');
+            }
+          });
+        }
+
+        function updateValueLabels() {
+          var numericFields = ['outerSize', 'innerSize', 'hoverOuterSize', 'clickOuterSize', 'zIndex'];
+          numericFields.forEach(function (id) {
+            var input = document.getElementById(id);
+            var label = document.getElementById(id + '-value');
+            if (input && label) {
+              label.textContent = String(input.value);
+            }
+          });
+
+          var lerpInput = document.getElementById('lerp');
+          var lerpLabel = document.getElementById('lerp-value');
+          if (lerpInput && lerpLabel) {
+            lerpLabel.textContent = Number(lerpInput.value).toFixed(2);
+          }
+        }
+
+        function setInitialFormValues() {
+          var mapping = [
+            ['outerSize', DEFAULTS.outerSize],
+            ['innerSize', DEFAULTS.innerSize],
+            ['hoverOuterSize', DEFAULTS.hoverOuterSize],
+            ['clickOuterSize', DEFAULTS.clickOuterSize],
+            ['lerp', DEFAULTS.lerp],
+            ['zIndex', DEFAULTS.zIndex],
+            ['interactiveSelectors', DEFAULTS.interactiveSelectors],
+          ];
+
+          mapping.forEach(function (pair) {
+            var id = pair[0];
+            var value = pair[1];
+            var el = document.getElementById(id);
+            if (!el) return;
+            el.value = String(value);
+          });
+
+          var colorMapping = [
+            ['color', DEFAULTS.color],
+            ['hoverColor', DEFAULTS.hoverColor],
+            ['outerBorderColor', '#6366f1'],
+            ['hoverBorderColor', '#818cf8'],
+          ];
+          colorMapping.forEach(function (pair) {
+            var id = pair[0];
+            var value = pair[1];
+            var el = document.getElementById(id);
+            if (el) el.value = value;
+          });
+
+          var hideNativeCursorEl = document.getElementById('hideNativeCursor');
+          if (hideNativeCursorEl) hideNativeCursorEl.checked = DEFAULTS.hideNativeCursor;
+
+          var disableOnReducedMotionEl = document.getElementById('disableOnReducedMotion');
+          if (disableOnReducedMotionEl) disableOnReducedMotionEl.checked = DEFAULTS.disableOnReducedMotion;
+
+          if (useScopeCheckbox) useScopeCheckbox.checked = true;
+
+          updateValueLabels();
+        }
+
+        function collectOptionsFromForm() {
+          if (!form) return {};
+
+          var data = new FormData(form);
+          var options = {};
+
+          function num(name) {
+            var v = data.get(name);
+            return v != null ? Number(v) : undefined;
+          }
+
+          function str(name) {
+            var v = data.get(name);
+            return v != null && String(v).trim().length > 0 ? String(v) : undefined;
+          }
+
+          options.outerSize = num('outerSize');
+          options.innerSize = num('innerSize');
+          options.hoverOuterSize = num('hoverOuterSize');
+          options.clickOuterSize = num('clickOuterSize');
+          options.zIndex = num('zIndex');
+          options.lerp = Number(data.get('lerp'));
+
+          options.color = data.get('color');
+          options.hoverColor = data.get('hoverColor');
+          options.outerBorderColor = data.get('outerBorderColor');
+          options.hoverBorderColor = data.get('hoverBorderColor');
+
+          options.interactiveSelectors = str('interactiveSelectors');
+
+          var hideNativeCursorEl = document.getElementById('hideNativeCursor');
+          options.hideNativeCursor = !!(hideNativeCursorEl && hideNativeCursorEl.checked);
+
+          var disableOnReducedMotionEl = document.getElementById('disableOnReducedMotion');
+          options.disableOnReducedMotion = !!(disableOnReducedMotionEl && disableOnReducedMotionEl.checked);
+
+          return options;
+        }
+
+        function createCursor(options) {
+          if (cursor) {
+            cursor.destroy();
+            cursor = null;
+          }
+
+          var opts = Object.assign({}, DEFAULTS, options || {});
+          if (useScopeCheckbox && useScopeCheckbox.checked && demoRoot) {
+            opts.rootElement = demoRoot;
+          } else {
+            opts.rootElement = null;
+          }
+
+          cursor = new CursorCtor(opts);
+          cursor.mount();
+        }
+
+        setInitialFormValues();
+        createCursor(collectOptionsFromForm());
+        updateUsageSnippet();
+
+        if (form) {
+          form.addEventListener('input', function (event) {
+            if (!cursor) return;
+            updateValueLabels();
+            var options = collectOptionsFromForm();
+
+            var target = event.target;
+            var recreate = target && target.id === 'useScope';
+            if (recreate) {
+              createCursor(options);
+            } else {
+              cursor.updateOptions(options);
+            }
+
+            updateUsageSnippet();
+          });
+        }
+
+        if (resetBtn) {
+          resetBtn.addEventListener('click', function () {
+            setInitialFormValues();
+            createCursor(collectOptionsFromForm());
+            updateUsageSnippet();
+            // Always resume the cursor and update UI state
+            if (cursor && typeof cursor.resume === 'function') cursor.resume();
+            if (cursorStatus && cursorStatusLabel) {
+              cursorStatus.classList.remove('bg-amber-100', 'text-amber-700');
+              cursorStatus.classList.add(
+                'bg-slate-900/5',
+                'dark:bg-slate-800/80',
+                'text-slate-600',
+                'dark:text-slate-300'
+              );
+              cursorStatusLabel.textContent = 'Cursor enabled';
+            }
+            if (cursorStatusDot && cursorStatusPing) {
+              cursorStatusDot.classList.remove('bg-amber-400');
+              cursorStatusDot.classList.add('bg-emerald-400');
+              cursorStatusPing.classList.remove('bg-amber-200/80');
+              cursorStatusPing.classList.add('bg-emerald-400/40');
+            }
+            updatePauseResumeButtons();
+          });
+        }
+
+        var cursorStatus = document.getElementById('cursor-status');
+        var cursorStatusLabel = document.getElementById('cursor-status-label');
+
+        var cursorStatusDot = document.getElementById('cursor-status-dot');
+        var cursorStatusPing = document.getElementById('cursor-status-ping');
+
+        function updatePauseResumeButtons() {
+          if (!pauseBtn || !resumeBtn || !cursor) return;
+          if (cursor.paused) {
+            pauseBtn.disabled = true;
+            resumeBtn.disabled = false;
+          } else {
+            pauseBtn.disabled = false;
+            resumeBtn.disabled = true;
+          }
+        }
+
+        if (pauseBtn) {
+          pauseBtn.addEventListener('click', function () {
+            if (cursor && typeof cursor.pause === 'function') cursor.pause();
+            if (cursorStatus && cursorStatusLabel) {
+              cursorStatus.classList.remove(
+                'bg-slate-900/5',
+                'dark:bg-slate-800/80',
+                'text-slate-600',
+                'dark:text-slate-300'
+              );
+              cursorStatus.classList.add('bg-amber-100', 'text-amber-700');
+              cursorStatusLabel.textContent = 'Paused';
+            }
+            if (cursorStatusDot && cursorStatusPing) {
+              cursorStatusDot.classList.remove('bg-emerald-400');
+              cursorStatusDot.classList.add('bg-amber-400');
+              cursorStatusPing.classList.remove('bg-emerald-400/40');
+              cursorStatusPing.classList.add('bg-amber-200/80');
+            }
+            updatePauseResumeButtons();
+          });
+        }
+
+        if (resumeBtn) {
+          resumeBtn.addEventListener('click', function () {
+            if (cursor && typeof cursor.resume === 'function') cursor.resume();
+            if (cursorStatus && cursorStatusLabel) {
+              cursorStatus.classList.remove('bg-amber-100', 'text-amber-700');
+              cursorStatus.classList.add(
+                'bg-slate-900/5',
+                'dark:bg-slate-800/80',
+                'text-slate-600',
+                'dark:text-slate-300'
+              );
+              cursorStatusLabel.textContent = 'Cursor enabled';
+            }
+            if (cursorStatusDot && cursorStatusPing) {
+              cursorStatusDot.classList.remove('bg-amber-400');
+              cursorStatusDot.classList.add('bg-emerald-400');
+              cursorStatusPing.classList.remove('bg-amber-200/80');
+              cursorStatusPing.classList.add('bg-emerald-400/40');
+            }
+            updatePauseResumeButtons();
+          });
+        }
+
+        // Initial state
+        updatePauseResumeButtons();
+
+        if (useScopeCheckbox) {
+          useScopeCheckbox.addEventListener('change', function () {
+            createCursor(collectOptionsFromForm());
+            updateUsageSnippet();
+            // Also resume the cursor if it is paused
+            if (cursor && typeof cursor.resume === 'function') {
+              cursor.resume();
+              // Update status badge and dot to enabled state
+              var cursorStatus = document.getElementById('cursor-status');
+              var cursorStatusLabel = document.getElementById('cursor-status-label');
+              var cursorStatusDot = document.getElementById('cursor-status-dot');
+              var cursorStatusPing = document.getElementById('cursor-status-ping');
+              if (cursorStatus && cursorStatusLabel) {
+                cursorStatus.classList.remove('bg-amber-100', 'text-amber-700');
+                cursorStatus.classList.add(
+                  'bg-slate-900/5',
+                  'dark:bg-slate-800/80',
+                  'text-slate-600',
+                  'dark:text-slate-300'
+                );
+                cursorStatusLabel.textContent = 'Cursor enabled';
+              }
+              if (cursorStatusDot && cursorStatusPing) {
+                cursorStatusDot.classList.remove('bg-amber-400');
+                cursorStatusDot.classList.add('bg-emerald-400');
+                cursorStatusPing.classList.remove('bg-amber-200/80');
+                cursorStatusPing.classList.add('bg-emerald-400/40');
+              }
+            }
+          });
+        }
+      })();
+    </script>
+  </body>
+</html>
