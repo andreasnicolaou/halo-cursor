@@ -1,6 +1,6 @@
 {
   "name": "@andreasnicolaou/halo-cursor",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Framework-agnostic animated cursor for Angular, React, Vue, and plain TypeScript apps.",
   "main": "dist/index.umd.js",
   "private": false,
