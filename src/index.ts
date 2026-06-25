@@ -45,7 +45,10 @@ export class Cursor {
   private innerEl: HTMLDivElement | null = null;
   private lastTouchTime = -Infinity;
   private mounted = false;
+  private nativeCursorHidden = false;
   private options: Required<CursorOptions>;
+  private originalBodyCursor = '';
+  private originalRootCursor = '';
   private outerEl: HTMLDivElement | null = null;
   private paused = false;
   private rafId = 0;
@@ -75,9 +78,10 @@ export class Cursor {
     this.styleEl = null;
     this.paused = false;
 
-    if (this.options.hideNativeCursor) {
-      this.setNativeCursorHidden(false);
-    }
+    // Always restore the native cursor, regardless of the current option value
+    // (it may have been toggled at runtime). The idempotency guard inside makes
+    // this a no-op when nothing was hidden.
+    this.setNativeCursorHidden(false);
 
     this.mounted = false;
   }
@@ -85,6 +89,8 @@ export class Cursor {
   public mount(): void {
     if (this.mounted) return;
     if (globalThis.window === undefined || typeof document === 'undefined') return;
+    // If loaded in <head> without defer/async, document.body may not exist yet.
+    if (!this.options.rootElement && !document.body) return;
 
     // Only enable on devices that can hover and have a fine pointer.
     // This prevents the cursor rendering at (0,0) on touch devices.
@@ -104,6 +110,8 @@ export class Cursor {
   public pause(): void {
     if (!this.mounted || this.paused) return;
     this.paused = true;
+    // Stop the animation loop while paused to save CPU/GPU cycles.
+    globalThis.window.cancelAnimationFrame(this.rafId);
     // Move off-screen
     this.tx = -999;
     this.ty = -999;
@@ -126,9 +134,25 @@ export class Cursor {
     if (this.options.hideNativeCursor) {
       this.setNativeCursorHidden(true);
     }
+    // Restart the animation loop that pause() stopped.
+    this.tick();
   }
 
   public updateOptions(options: CursorOptions): void {
+    // Changing the host or class prefix means the existing DOM nodes, styles and
+    // listeners are bound to the old container/classes. Tear down with the OLD
+    // options first (so the old root is cleaned up), then re-mount with the new.
+    const rootElementChanged = options.rootElement !== undefined && options.rootElement !== this.options.rootElement;
+    const classPrefixChanged = options.classPrefix !== undefined && options.classPrefix !== this.options.classPrefix;
+
+    if (this.mounted && (rootElementChanged || classPrefixChanged)) {
+      this.destroy();
+      this.options = { ...this.options, ...options };
+      this.options.lerp = Math.min(1, Math.max(0, this.options.lerp));
+      this.mount();
+      return;
+    }
+
     const previousHideNativeCursor = this.options.hideNativeCursor;
     this.options = { ...this.options, ...options };
     this.options.lerp = Math.min(1, Math.max(0, this.options.lerp));
@@ -334,25 +358,45 @@ export class Cursor {
   }
 
   private setNativeCursorHidden(hidden: boolean): void {
+    // Idempotent: avoids re-storing originals on repeated calls and makes the
+    // unconditional cleanup in destroy() a no-op when nothing was hidden.
+    if (hidden === this.nativeCursorHidden) return;
+
     const prefix = this.options.classPrefix;
     const root = this.options.rootElement ?? document.documentElement;
 
     if (hidden) {
+      // Remember any pre-existing inline cursor so we can restore it later.
+      this.originalRootCursor = root.style.cursor;
       root.classList.add(`${prefix}-hide-native`);
       root.style.cursor = 'none';
       if (!this.options.rootElement) {
+        this.originalBodyCursor = document.body.style.cursor;
         document.body.style.cursor = 'none';
       }
     } else {
       root.classList.remove(`${prefix}-hide-native`);
-      root.style.removeProperty('cursor');
+      if (this.originalRootCursor) {
+        root.style.cursor = this.originalRootCursor;
+      } else {
+        root.style.removeProperty('cursor');
+      }
       if (!this.options.rootElement) {
-        document.body.style.removeProperty('cursor');
+        if (this.originalBodyCursor) {
+          document.body.style.cursor = this.originalBodyCursor;
+        } else {
+          document.body.style.removeProperty('cursor');
+        }
       }
     }
+
+    this.nativeCursorHidden = hidden;
   }
 
   private readonly tick = (): void => {
+    // Stop scheduling frames once paused or unmounted; resume()/mount() restart it.
+    if (this.paused || !this.mounted) return;
+
     const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
 
     this.rx = lerp(this.rx, this.tx, this.options.lerp);

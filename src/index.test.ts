@@ -100,6 +100,36 @@ describe('Cursor', () => {
     expect(document.body.style.cursor).toBe('');
   });
 
+  it('preserves a pre-existing inline cursor when hiding and restores it on destroy', () => {
+    setMatchMedia();
+
+    document.body.style.cursor = 'pointer';
+
+    const cursor = new Cursor({ hideNativeCursor: true });
+    cursor.mount();
+    expect(document.body.style.cursor).toBe('none');
+
+    cursor.destroy();
+    expect(document.body.style.cursor).toBe('pointer');
+  });
+
+  it('re-mounts into the new container when rootElement changes via updateOptions', () => {
+    setMatchMedia();
+
+    const firstScope = document.createElement('div');
+    const secondScope = document.createElement('div');
+    document.body.append(firstScope, secondScope);
+
+    const cursor = new Cursor({ rootElement: firstScope });
+    cursor.mount();
+    expect(firstScope.querySelector('.halo-cursor-outer')).not.toBeNull();
+
+    cursor.updateOptions({ rootElement: secondScope });
+
+    expect(firstScope.querySelector('.halo-cursor-outer')).toBeNull();
+    expect(secondScope.querySelector('.halo-cursor-outer')).not.toBeNull();
+  });
+
   it('updates options safely when mounted', () => {
     setMatchMedia();
 
