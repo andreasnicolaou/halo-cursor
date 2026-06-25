@@ -207,6 +207,40 @@ describe('Cursor', () => {
     expect(outer!.classList.contains('click')).toBe(false);
   });
 
+  it('does not surface the halo at the top corner when a tap fires a synthetic move (reported bug)', () => {
+    // Reproduces the reported symptom: on some mobile/webview browsers the
+    // hover/pointer media query false-positives, the cursor mounts, and the
+    // synthetic mousemove replayed on tap drops the halo at the tap point
+    // (typically the top corner) where it then stays stuck.
+    setMatchMedia();
+
+    const cursor = new Cursor();
+    cursor.mount();
+
+    const outer = document.querySelector<HTMLDivElement>('.halo-cursor-outer');
+    const inner = document.querySelector<HTMLDivElement>('.halo-cursor-inner');
+
+    // Tap near the top-left corner.
+    document.dispatchEvent(new Event('touchstart'));
+    document.dispatchEvent(new MouseEvent('mousemove', { clientX: 0, clientY: 0 }));
+
+    // The halo must remain hidden rather than appearing at (0,0).
+    expect(outer!.classList.contains('halo-cursor-hidden')).toBe(true);
+    expect(inner!.classList.contains('halo-cursor-hidden')).toBe(true);
+  });
+
+  it('injects a coarse-pointer CSS guard so the halo is hidden on touch devices', () => {
+    setMatchMedia();
+
+    const cursor = new Cursor();
+    cursor.mount();
+
+    const styleEl = document.querySelector<HTMLStyleElement>('style[data-halo-cursor="halo-cursor"]');
+    expect(styleEl).not.toBeNull();
+    expect(styleEl!.textContent).toContain('@media (pointer: coarse), (hover: none)');
+    expect(styleEl!.textContent).toContain('display: none !important');
+  });
+
   it('reactively toggles native cursor hiding via updateOptions while mounted', () => {
     setMatchMedia();
 
