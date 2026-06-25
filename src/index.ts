@@ -43,8 +43,12 @@ export const DEFAULT_OPTIONS: Required<CursorOptions> = {
 export class Cursor {
   private cleanupFns: Array<() => void> = [];
   private innerEl: HTMLDivElement | null = null;
+  private lastTouchTime = -Infinity;
   private mounted = false;
+  private nativeCursorHidden = false;
   private options: Required<CursorOptions>;
+  private originalBodyCursor = '';
+  private originalRootCursor = '';
   private outerEl: HTMLDivElement | null = null;
   private paused = false;
   private rafId = 0;
@@ -74,15 +78,10 @@ export class Cursor {
     this.styleEl = null;
     this.paused = false;
 
-    if (this.options.hideNativeCursor) {
-      const prefix = this.options.classPrefix;
-      const root = this.options.rootElement ?? document.documentElement;
-      root.classList.remove(`${prefix}-hide-native`);
-      root.style.removeProperty('cursor');
-      if (!this.options.rootElement) {
-        document.body.style.removeProperty('cursor');
-      }
-    }
+    // Always restore the native cursor, regardless of the current option value
+    // (it may have been toggled at runtime). The idempotency guard inside makes
+    // this a no-op when nothing was hidden.
+    this.setNativeCursorHidden(false);
 
     this.mounted = false;
   }
@@ -90,6 +89,8 @@ export class Cursor {
   public mount(): void {
     if (this.mounted) return;
     if (globalThis.window === undefined || typeof document === 'undefined') return;
+    // If loaded in <head> without defer/async, document.body may not exist yet.
+    if (!this.options.rootElement && !document.body) return;
 
     // Only enable on devices that can hover and have a fine pointer.
     // This prevents the cursor rendering at (0,0) on touch devices.
@@ -109,6 +110,8 @@ export class Cursor {
   public pause(): void {
     if (!this.mounted || this.paused) return;
     this.paused = true;
+    // Stop the animation loop while paused to save CPU/GPU cycles.
+    globalThis.window.cancelAnimationFrame(this.rafId);
     // Move off-screen
     this.tx = -999;
     this.ty = -999;
@@ -117,13 +120,7 @@ export class Cursor {
     this.innerEl?.classList.add('halo-cursor-paused');
     // Restore native cursor if hidden
     if (this.options.hideNativeCursor) {
-      const prefix = this.options.classPrefix;
-      const root = this.options.rootElement ?? document.documentElement;
-      root.classList.remove(`${prefix}-hide-native`);
-      root.style.removeProperty('cursor');
-      if (!this.options.rootElement) {
-        document.body.style.removeProperty('cursor');
-      }
+      this.setNativeCursorHidden(false);
     }
   }
 
@@ -135,29 +132,53 @@ export class Cursor {
     this.innerEl?.classList.remove('halo-cursor-paused');
     // Hide native cursor again if needed
     if (this.options.hideNativeCursor) {
-      const prefix = this.options.classPrefix;
-      const root = this.options.rootElement ?? document.documentElement;
-      root.classList.add(`${prefix}-hide-native`);
-      root.style.cursor = 'none';
-      if (!this.options.rootElement) {
-        document.body.style.cursor = 'none';
-      }
+      this.setNativeCursorHidden(true);
     }
+    // Restart the animation loop that pause() stopped.
+    this.tick();
   }
 
   public updateOptions(options: CursorOptions): void {
+    // Changing the host or class prefix means the existing DOM nodes, styles and
+    // listeners are bound to the old container/classes. Tear down with the OLD
+    // options first (so the old root is cleaned up), then re-mount with the new.
+    const rootElementChanged = options.rootElement !== undefined && options.rootElement !== this.options.rootElement;
+    const classPrefixChanged = options.classPrefix !== undefined && options.classPrefix !== this.options.classPrefix;
+
+    if (this.mounted && (rootElementChanged || classPrefixChanged)) {
+      this.destroy();
+      this.options = { ...this.options, ...options };
+      this.options.lerp = Math.min(1, Math.max(0, this.options.lerp));
+      this.mount();
+      return;
+    }
+
+    const previousHideNativeCursor = this.options.hideNativeCursor;
     this.options = { ...this.options, ...options };
     this.options.lerp = Math.min(1, Math.max(0, this.options.lerp));
 
     if (this.mounted) {
       this.styleEl?.remove();
       this.injectStyles();
+
+      if (!this.paused && this.options.hideNativeCursor !== previousHideNativeCursor) {
+        this.setNativeCursorHidden(this.options.hideNativeCursor);
+      }
     }
   }
 
   private attachEvents(): void {
+    // Some mobile/webview browsers misreport `(hover: hover) and (pointer: fine)` as matching,
+    // and all of them replay taps as synthetic mouse events. Ignore mouse activity shortly after
+    // a real touch so the halo can't get stuck wherever the user last tapped.
+    const isWithinTouchCooldown = (): boolean => Date.now() - this.lastTouchTime < 500;
+
+    const onTouchStart = (): void => {
+      this.lastTouchTime = Date.now();
+    };
+
     const onMove = (event: MouseEvent): void => {
-      if (this.paused) return;
+      if (this.paused || isWithinTouchCooldown()) return;
 
       this.tx = event.clientX;
       this.ty = event.clientY;
@@ -174,7 +195,7 @@ export class Cursor {
     };
 
     const onDown = (): void => {
-      if (this.paused) return;
+      if (this.paused || isWithinTouchCooldown()) return;
       this.outerEl?.classList.remove('hover');
       this.outerEl?.classList.add('click');
     };
@@ -185,7 +206,7 @@ export class Cursor {
     };
 
     const onOver = (event: MouseEvent): void => {
-      if (this.paused) return;
+      if (this.paused || isWithinTouchCooldown()) return;
 
       const target = event.target as Element | null;
       const isInteractive = !!target?.closest(this.options.interactiveSelectors);
@@ -203,6 +224,7 @@ export class Cursor {
 
     const eventTarget: Document | HTMLElement = this.options.rootElement ?? document;
 
+    eventTarget.addEventListener('touchstart', onTouchStart as EventListener, { passive: true });
     eventTarget.addEventListener('mousemove', onMove as EventListener, { passive: true });
     eventTarget.addEventListener('mousedown', onDown as EventListener, { passive: true });
     eventTarget.addEventListener('mouseup', onUp as EventListener, { passive: true });
@@ -210,6 +232,7 @@ export class Cursor {
     eventTarget.addEventListener('mouseleave', onLeaveScope as EventListener, { passive: true });
 
     this.cleanupFns.push(
+      () => eventTarget.removeEventListener('touchstart', onTouchStart as EventListener),
       () => eventTarget.removeEventListener('mousemove', onMove as EventListener),
       () => eventTarget.removeEventListener('mousedown', onDown as EventListener),
       () => eventTarget.removeEventListener('mouseup', onUp as EventListener),
@@ -221,7 +244,6 @@ export class Cursor {
   private createElements(): void {
     const prefix = this.options.classPrefix;
     const host = this.options.rootElement ?? document.body;
-    const root = this.options.rootElement ?? document.documentElement;
 
     this.outerEl = document.createElement('div');
     this.outerEl.className = `${prefix}-outer ${prefix}-hidden`;
@@ -235,11 +257,7 @@ export class Cursor {
     host.appendChild(this.innerEl);
 
     if (this.options.hideNativeCursor) {
-      root.classList.add(`${prefix}-hide-native`);
-      root.style.cursor = 'none';
-      if (!this.options.rootElement) {
-        document.body.style.cursor = 'none';
-      }
+      this.setNativeCursorHidden(true);
     }
   }
 
@@ -313,6 +331,16 @@ export class Cursor {
       .${prefix}-inner.hover {
         background: ${o.hoverColor};
       }
+
+      /* Belt-and-suspenders: some mobile/webview browsers misreport the
+         hover/pointer media features used by the mount-time check, so also
+         hide via CSS for any coarse/non-hover pointer. */
+      @media (pointer: coarse), (hover: none) {
+        .${prefix}-outer,
+        .${prefix}-inner {
+          display: none !important;
+        }
+      }
     `;
 
     if (o.hideNativeCursor) {
@@ -329,7 +357,46 @@ export class Cursor {
     document.head.appendChild(this.styleEl);
   }
 
+  private setNativeCursorHidden(hidden: boolean): void {
+    // Idempotent: avoids re-storing originals on repeated calls and makes the
+    // unconditional cleanup in destroy() a no-op when nothing was hidden.
+    if (hidden === this.nativeCursorHidden) return;
+
+    const prefix = this.options.classPrefix;
+    const root = this.options.rootElement ?? document.documentElement;
+
+    if (hidden) {
+      // Remember any pre-existing inline cursor so we can restore it later.
+      this.originalRootCursor = root.style.cursor;
+      root.classList.add(`${prefix}-hide-native`);
+      root.style.cursor = 'none';
+      if (!this.options.rootElement) {
+        this.originalBodyCursor = document.body.style.cursor;
+        document.body.style.cursor = 'none';
+      }
+    } else {
+      root.classList.remove(`${prefix}-hide-native`);
+      if (this.originalRootCursor) {
+        root.style.cursor = this.originalRootCursor;
+      } else {
+        root.style.removeProperty('cursor');
+      }
+      if (!this.options.rootElement) {
+        if (this.originalBodyCursor) {
+          document.body.style.cursor = this.originalBodyCursor;
+        } else {
+          document.body.style.removeProperty('cursor');
+        }
+      }
+    }
+
+    this.nativeCursorHidden = hidden;
+  }
+
   private readonly tick = (): void => {
+    // Stop scheduling frames once paused or unmounted; resume()/mount() restart it.
+    if (this.paused || !this.mounted) return;
+
     const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
 
     this.rx = lerp(this.rx, this.tx, this.options.lerp);
